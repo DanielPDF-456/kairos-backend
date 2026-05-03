@@ -770,7 +770,57 @@ def registrar_administracion(usuario):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+    
+@app.route('/api/administraciones/generar', methods=['POST'])
+@token_required
+@rol_required(['admin', 'medico'])
+def generar_administraciones(usuario):
+    """Generar administraciones del día a partir de prescripciones activas"""
+    try:
+        from datetime import date
+        hoy = date.today()
+        prescripciones = Prescripcion.query.filter_by(activa=True).all()
+        generadas = 0
 
+        for presc in prescripciones:
+            try:
+                horarios = json.loads(presc.horarios)
+            except Exception:
+                horarios = [presc.horarios]
+
+            for horario in horarios:
+                try:
+                    hora, minuto = map(int, horario.split(':'))
+                    hora_programada = datetime(hoy.year, hoy.month, hoy.day, hora, minuto)
+
+                    # Verificar si ya existe una administración para este horario hoy
+                    existe = Administracion.query.filter_by(
+                        prescripcion_id=presc.id,
+                        hora_programada=hora_programada
+                    ).first()
+
+                    if not existe:
+                        admin = Administracion(
+                            prescripcion_id=presc.id,
+                            paciente_id=presc.paciente_id,
+                            usuario_id=usuario.id,
+                            hora_programada=hora_programada,
+                            estado='pendiente'
+                        )
+                        db.session.add(admin)
+                        generadas += 1
+                except Exception:
+                    continue
+
+        db.session.commit()
+        return jsonify({
+            'mensaje': f'{generadas} administraciones generadas para hoy',
+            'generadas': generadas
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 # ==================== RUTAS DE REPORTES Y ANÁLISIS ====================
 
