@@ -484,6 +484,35 @@ def obtener_paciente(usuario, id):
         return jsonify(paciente.to_dict()), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+@app.route('/api/pacientes/<int:id>', methods=['DELETE'])
+@token_required
+@rol_required(['medico', 'admin'])
+def eliminar_paciente(usuario, id):
+    """Eliminar paciente"""
+    try:
+        paciente = Paciente.query.get(id)
+        if not paciente:
+            return jsonify({'error': 'Paciente no encontrado'}), 404
+        
+        db.session.delete(paciente)
+        db.session.commit()
+        
+        log = LogAuditoria(
+            usuario_id=usuario.id,
+            tipo_evento='eliminar_paciente',
+            descripcion=f'Paciente {paciente.nombre} {paciente.apellido} eliminado',
+            tabla_afectada='pacientes',
+            registro_id=id,
+            ip_address=request.remote_addr
+        )
+        db.session.add(log)
+        db.session.commit()
+        
+        return jsonify({'mensaje': 'Paciente eliminado correctamente'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 
 # ==================== RUTAS DE MEDICAMENTOS ====================
