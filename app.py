@@ -811,13 +811,10 @@ def init_db():
         db.create_all()
         print("✓ Base de datos inicializada")
 
+# Esto crea las tablas siempre, sin importar cómo arranque el servidor
+init_db()
 
 if __name__ == '__main__':
-    # Inicializar base de datos
-    init_db()
-    
-    # Ejecutar aplicación
     debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     port = int(os.getenv('PORT', 5000))
-    
     app.run(host='0.0.0.0', port=port, debug=debug)
