@@ -4,6 +4,7 @@ Backend Flask con SQLAlchemy y PostgreSQL en Render
 """
 
 import os
+import json
 from datetime import datetime, timedelta
 from functools import wraps
 
