@@ -10,7 +10,7 @@ from functools import wraps
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import DateTime, String, Integer, Float, Boolean, Text, Enum, ForeignKey, UniqueConstraint
+from sqlalchemy import DateTime, String, Integer, Float, Boolean, Text, Enum, ForeignKey, UniqueConstraint, text
 from sqlalchemy.orm import relationship
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
@@ -772,7 +772,8 @@ def obtener_logs_auditoria(usuario):
 def health_check():
     """Verificar salud de la API"""
     try:
-        db.session.execute('SELECT 1')
+        from sqlalchemy import text
+        db.session.execute(text('SELECT 1'))
         return jsonify({'status': 'healthy', 'message': 'API Kairos funcionando correctamente'}), 200
     except Exception as e:
         return jsonify({'status': 'unhealthy', 'message': str(e)}), 500
