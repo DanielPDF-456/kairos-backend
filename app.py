@@ -775,27 +775,26 @@ def registrar_administracion(usuario):
 @token_required
 @rol_required(['admin', 'medico'])
 def generar_administraciones(usuario):
-    """Generar administraciones del día a partir de prescripciones activas"""
     try:
         hoy = datetime.utcnow().date()
         prescripciones = Prescripcion.query.filter_by(activa=True).all()
         generadas = 0
+        errores = []
 
         for presc in prescripciones:
             try:
                 horarios = json.loads(presc.horarios)
                 if isinstance(horarios, str):
                     horarios = json.loads(horarios)
-            except Exception:
-                horarios = [presc.horarios]
+            except Exception as e:
+                errores.append(f'Presc {presc.id} parse error: {str(e)}')
+                continue
 
             for horario in horarios:
                 try:
-                    partes = str(horario).strip().split(':')
-                    hora   = int(partes[0])
-                    minuto = int(partes[1]) if len(partes) > 1 else 0
-
-                    # Guardamos en UTC sumando 6h al horario local (zona México)
+                    partes   = str(horario).strip().split(':')
+                    hora     = int(partes[0])
+                    minuto   = int(partes[1]) if len(partes) > 1 else 0
                     hora_utc = (hora + 6) % 24
                     hora_programada = datetime(hoy.year, hoy.month, hoy.day, hora_utc, minuto)
 
@@ -814,13 +813,16 @@ def generar_administraciones(usuario):
                         )
                         db.session.add(admin)
                         generadas += 1
-                except Exception:
-                    continue
+                    else:
+                        errores.append(f'Presc {presc.id} horario {horario} ya existe')
+                except Exception as e:
+                    errores.append(f'Presc {presc.id} horario {horario} error: {str(e)}')
 
         db.session.commit()
         return jsonify({
-            'mensaje': f'{generadas} administraciones generadas para hoy',
-            'generadas': generadas
+            'generadas': generadas,
+            'mensaje': f'{generadas} administraciones generadas',
+            'errores': errores
         }), 201
 
     except Exception as e:
