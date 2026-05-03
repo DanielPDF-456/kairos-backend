@@ -777,23 +777,28 @@ def registrar_administracion(usuario):
 def generar_administraciones(usuario):
     """Generar administraciones del día a partir de prescripciones activas"""
     try:
-        from datetime import date
-        hoy = date.today()
+        hoy = datetime.utcnow().date()
         prescripciones = Prescripcion.query.filter_by(activa=True).all()
         generadas = 0
 
         for presc in prescripciones:
             try:
                 horarios = json.loads(presc.horarios)
+                if isinstance(horarios, str):
+                    horarios = json.loads(horarios)
             except Exception:
                 horarios = [presc.horarios]
 
             for horario in horarios:
                 try:
-                    hora, minuto = map(int, horario.split(':'))
-                    hora_programada = datetime(hoy.year, hoy.month, hoy.day, hora, minuto)
+                    partes = str(horario).strip().split(':')
+                    hora   = int(partes[0])
+                    minuto = int(partes[1]) if len(partes) > 1 else 0
 
-                    # Verificar si ya existe una administración para este horario hoy
+                    # Guardamos en UTC sumando 6h al horario local (zona México)
+                    hora_utc = (hora + 6) % 24
+                    hora_programada = datetime(hoy.year, hoy.month, hoy.day, hora_utc, minuto)
+
                     existe = Administracion.query.filter_by(
                         prescripcion_id=presc.id,
                         hora_programada=hora_programada
