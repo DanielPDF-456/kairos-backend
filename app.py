@@ -485,6 +485,35 @@ def obtener_paciente(usuario, id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
+@app.route('/api/pacientes/<int:id>/alta', methods=['PUT'])
+@token_required
+@rol_required(['medico', 'admin'])
+def dar_alta_paciente(usuario, id):
+    """Dar de alta a un paciente"""
+    try:
+        paciente = Paciente.query.get(id)
+        if not paciente:
+            return jsonify({'error': 'Paciente no encontrado'}), 404
+
+        paciente.estado = 'alta'
+        db.session.commit()
+
+        log = LogAuditoria(
+            usuario_id=usuario.id,
+            tipo_evento='alta_paciente',
+            descripcion=f'Paciente {paciente.nombre} {paciente.apellido} dado de alta',
+            tabla_afectada='pacientes',
+            registro_id=paciente.id,
+            ip_address=request.remote_addr
+        )
+        db.session.add(log)
+        db.session.commit()
+
+        return jsonify({'mensaje': 'Paciente dado de alta', 'paciente': paciente.to_dict()}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+    
 @app.route('/api/pacientes/<int:id>', methods=['DELETE'])
 @token_required
 @rol_required(['medico', 'admin'])
@@ -555,6 +584,35 @@ def crear_medicamento(usuario):
         
         return jsonify({'mensaje': 'Medicamento creado', 'medicamento': medicamento.to_dict()}), 201
     
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+    
+@app.route('/api/prescripciones/<int:id>', methods=['DELETE'])
+@token_required
+@rol_required(['medico', 'admin'])
+def cancelar_prescripcion(usuario, id):
+    """Cancelar/desactivar una prescripción"""
+    try:
+        prescripcion = Prescripcion.query.get(id)
+        if not prescripcion:
+            return jsonify({'error': 'Prescripción no encontrada'}), 404
+
+        prescripcion.activa = False
+        db.session.commit()
+
+        log = LogAuditoria(
+            usuario_id=usuario.id,
+            tipo_evento='cancelar_prescripcion',
+            descripcion=f'Prescripción #{id} cancelada',
+            tabla_afectada='prescripciones',
+            registro_id=id,
+            ip_address=request.remote_addr
+        )
+        db.session.add(log)
+        db.session.commit()
+
+        return jsonify({'mensaje': 'Prescripción cancelada correctamente'}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
